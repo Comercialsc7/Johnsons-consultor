@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import html
-import io
 import pickle
 import tempfile
 from pathlib import Path
@@ -23,6 +22,7 @@ from catalogo import (
 
 RAIZ = Path(__file__).resolve().parent
 LOGO = RAIZ / "assets" / "scj_logo.svg"
+PLANILHA = RAIZ / "baseapp.xlsx"
 CACHE_CATALOGO = Path(tempfile.gettempdir()) / "johnsons_consultor_catalogo.pkl"
 
 PRAZOS = (
@@ -252,51 +252,11 @@ def logo_html(largura: int) -> str:
     return f"<div class='logo'>{svg}</div>"
 
 
-def _limpar_previa() -> None:
-    st.session_state.pop("_previa", None)
-    st.session_state.pop("_previa_nome", None)
-
-
-@st.dialog("Importar catálogo", width="medium", on_dismiss=_limpar_previa)
-def modal_importar() -> None:
-    st.markdown(
-        "Envie a planilha de preços com produto, embalagem, quantidade "
-        "e os prazos à vista, 7, 14, 21 e 28 dias."
-    )
-    arquivo = st.file_uploader(
-        "Planilha de preços",
-        type=["xlsx"],
-        label_visibility="collapsed",
-    )
-    if arquivo is None:
-        _limpar_previa()
-    else:
-        try:
-            previa = ler_catalogo(io.BytesIO(arquivo.getvalue()))
-            produtos = int(previa["cod"].nunique())
-            st.session_state["_previa"] = previa
-            st.session_state["_previa_nome"] = arquivo.name
-            st.markdown(
-                f"**{produtos} produtos** · {len(previa)} embalagens em `{arquivo.name}`."
-            )
-        except Exception as erro:
-            _limpar_previa()
-            st.error(str(erro))
-
-    pronto = isinstance(st.session_state.get("_previa"), pd.DataFrame)
-    if st.button(
-        "Carregar catálogo",
-        type="primary",
-        disabled=not pronto,
-        use_container_width=True,
-    ):
-        st.session_state.catalogo = st.session_state.pop("_previa")
-        st.session_state.arquivo_nome = st.session_state.pop("_previa_nome", "")
-        st.session_state.cod_sel = None
-        st.session_state.tela = "catalogo"
-        st.session_state.limpar_filtros = True
-        _salvar_cache()
-        st.rerun()
+def carregar_planilha() -> None:
+    if not PLANILHA.is_file():
+        raise FileNotFoundError("A planilha baseapp.xlsx não está na pasta do aplicativo.")
+    st.session_state.catalogo = ler_catalogo(PLANILHA)
+    st.session_state.arquivo_nome = PLANILHA.name
 
 
 def _salvar_cache() -> None:
@@ -338,8 +298,12 @@ def redirecionar_sku() -> None:
     sku = st.query_params.get("sku")
     if not sku:
         return
-    if not isinstance(st.session_state.catalogo, pd.DataFrame) and not _restaurar_cache():
-        return
+    if not isinstance(st.session_state.catalogo, pd.DataFrame):
+        try:
+            carregar_planilha()
+        except (OSError, ValueError):
+            if not _restaurar_cache():
+                return
     st.session_state.cod_sel = str(sku)
     st.session_state.tela = "detalhe"
     del st.query_params["sku"]
@@ -354,13 +318,22 @@ def tela_boas_vindas() -> None:
         st.markdown("<p class='hero-kicker'>Condições comerciais</p>", unsafe_allow_html=True)
         st.markdown("<h1 class='hero-title'>Consultor comercial</h1>", unsafe_allow_html=True)
         st.markdown(
-            "<p class='hero-text'>Importe a planilha para consultar produto, "
-            "embalagem e preço por prazo. A busca fica disponível na tela seguinte.</p>",
+            "<p class='hero-text'>Consulte produto, embalagem e preço por prazo. "
+            "A busca fica disponível na tela seguinte.</p>",
             unsafe_allow_html=True,
         )
-        if st.button("Importar catálogo", type="primary", use_container_width=True):
-            modal_importar()
-        if st.session_state.catalogo is not None:
+        if st.button("Acessar", type="primary", use_container_width=True):
+            try:
+                carregar_planilha()
+            except (OSError, ValueError) as erro:
+                st.error(str(erro))
+            else:
+                st.session_state.cod_sel = None
+                st.session_state.tela = "catalogo"
+                st.session_state.limpar_filtros = True
+                _salvar_cache()
+                st.rerun()
+        if isinstance(st.session_state.catalogo, pd.DataFrame):
             st.write("")
             if st.button("Continuar no catálogo", use_container_width=True):
                 st.session_state.tela = "catalogo"
@@ -403,17 +376,12 @@ def tela_catalogo() -> None:
         st.session_state.linha = st.session_state.linha_salva
     st.markdown(logo_html(168), unsafe_allow_html=True)
     st.write("")
-    busca_col, acao = st.columns([5.2, 1.45], vertical_alignment="bottom")
-    with busca_col:
-        st.text_input(
-            "Buscar produto",
-            key="busca",
-            placeholder="Buscar por código ou nome",
-            label_visibility="collapsed",
-        )
-    with acao:
-        if st.button("Trocar arquivo", use_container_width=True):
-            modal_importar()
+    st.text_input(
+        "Buscar produto",
+        key="busca",
+        placeholder="Buscar por código ou nome",
+        label_visibility="collapsed",
+    )
 
     linhas = ["Todas as linhas"] + sorted(resumo["categoria1"].dropna().unique())
     if st.session_state.linha not in linhas:
