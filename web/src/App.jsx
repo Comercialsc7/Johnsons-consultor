@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   carregarPlanilha,
   embalagensDo,
@@ -210,6 +210,7 @@ function Detalhe({ linhas, onVoltar, onCalculadora }) {
       <p className="prod-meta">
         Código {produto.cod} · EAN {produto.ean || "—"}
       </p>
+      {igual ? <p className="unitario-nota">Preço por unidade em 28 dias: {moeda(produto.preco_uni)}</p> : null}
       <div className="tabela-wrap">
         <table className="precos">
           <thead>
@@ -271,6 +272,40 @@ function quantidadeInformada(texto) {
   return numero
 }
 
+function centavos(valor) {
+  return Math.round(valor * 100) / 100
+}
+
+function valorDigitado(texto) {
+  const limpo = String(texto).trim()
+  if (!limpo) return null
+  const normal = limpo.includes(",") ? limpo.replace(/\./g, "").replace(",", ".") : limpo
+  if (!/^\d+(\.\d+)?$/.test(normal)) return null
+  const numero = Number(normal)
+  return Number.isFinite(numero) ? numero : null
+}
+
+function percentualTexto(valor) {
+  return `${Math.abs(valor).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}%`
+}
+
+const ATALHOS = [3, 5, 7, 10]
+
+function textoDigitavel(valor) {
+  return valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function textoDesconto(diferenca, unitario) {
+  if (diferenca === null || !unitario) return "—"
+  const percentual = (diferenca / unitario) * 100
+  if (diferenca === 0) return "R$ 0,00"
+  const sinal = diferenca > 0 ? "" : "− "
+  return `${sinal}${moeda(Math.abs(diferenca))} · ${percentualTexto(percentual)}`
+}
+
 function Calculadora({ linhas, codInicial, onVoltar }) {
   const produtos = useMemo(() => resumir(linhas), [linhas])
   const produtoInicial = produtos.find((item) => String(item.cod) === String(codInicial)) ?? null
@@ -279,6 +314,8 @@ function Calculadora({ linhas, codInicial, onVoltar }) {
   const [chavePack, setChavePack] = useState("")
   const [quantidade, setQuantidade] = useState("1")
   const [prazo, setPrazo] = useState("avista")
+  const [sugerido, setSugerido] = useState("")
+  const [atalho, setAtalho] = useState(null)
 
   const sugestoes = useMemo(() => {
     if (produto || !busca.trim()) return []
@@ -291,14 +328,26 @@ function Calculadora({ linhas, codInicial, onVoltar }) {
   const pack = packs.find((item) => chaveEmbalagem(item) === chavePack) || packs[0] || null
   const qtd = quantidadeInformada(quantidade)
   const preco = pack ? pack[prazo] : null
-  const total = preco !== null && qtd !== null ? Math.round(preco * qtd * 100) / 100 : null
+  const total = preco !== null && qtd !== null ? centavos(preco * qtd) : null
+  const unitario = preco !== null && pack?.qtd ? centavos(preco / pack.qtd) : null
+  const sugeridoNum = valorDigitado(sugerido)
+  const unidades = pack && qtd !== null ? pack.qtd * qtd : null
+  const diferenca = unitario !== null && sugeridoNum !== null ? centavos(unitario - sugeridoNum) : null
+  const soma = sugeridoNum !== null && unidades !== null ? centavos(sugeridoNum * unidades) : null
   const condicao = PRAZOS.find(([campo]) => campo === prazo)?.[1] ?? ""
+
+  useEffect(() => {
+    if (atalho === null || unitario === null) return
+    setSugerido(textoDigitavel(centavos(unitario * (1 - atalho / 100))))
+  }, [atalho, unitario])
 
   function escolher(item) {
     setProduto(item)
     setBusca("")
     setChavePack("")
     setQuantidade("1")
+    setSugerido("")
+    setAtalho(null)
   }
 
   return (
@@ -394,6 +443,51 @@ function Calculadora({ linhas, codInicial, onVoltar }) {
               </select>
             </label>
           </div>
+          <div className="calc-lado">
+            <label className="calc-campo">
+              Valor unitário sugerido
+              <input
+                className="campo"
+                inputMode="decimal"
+                value={sugerido}
+                onChange={(evento) => {
+                  setAtalho(null)
+                  setSugerido(evento.target.value)
+                }}
+                placeholder="0,00"
+                disabled={!produto}
+                aria-label="Valor unitário sugerido"
+              />
+            </label>
+            <div className="calc-campo">
+              <span>Desconto na unidade</span>
+              <p className="calc-leitura">{textoDesconto(diferenca, unitario)}</p>
+            </div>
+          </div>
+          <div className="calc-campo">
+            <span>Atalhos de desconto</span>
+            <div className="calc-atalhos">
+              {ATALHOS.map((percentual) => (
+                <button
+                  key={percentual}
+                  type="button"
+                  className={atalho === percentual ? "atalho ativo" : "atalho"}
+                  disabled={unitario === null}
+                  onClick={() => setAtalho(percentual)}
+                >
+                  −{percentual}%
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="calc-campo">
+            <span>Total sugerido</span>
+            <p className="calc-leitura">
+              {soma === null || sugeridoNum === null || unidades === null
+                ? "—"
+                : `${moeda(soma)} · ${moeda(sugeridoNum)} × ${unidades} ${unidades === 1 ? "unidade" : "unidades"}`}
+            </p>
+          </div>
         </section>
         <aside className="calc-total">
           <p className="prod-kicker">Total</p>
@@ -405,6 +499,8 @@ function Calculadora({ linhas, codInicial, onVoltar }) {
               }`}
               <br />
               {moeda(preco)} por {rotuloEmbalagem(pack.embalagem).toLowerCase()} · {condicao}
+              <br />
+              {moeda(unitario)} por unidade
             </p>
           ) : (
             <p className="calc-resumo">

@@ -80,11 +80,47 @@ button, input, select { font: inherit; }
 
 .calc-campo:first-child { margin-top: 0; }
 
-.calc-dupla {
+.calc-dupla, .calc-lado {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
+
+.calc-leitura {
+  margin: 0;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  background: #FAF8F6;
+  border: 1px solid #E4DDD4;
+  border-radius: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.calc-atalhos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.atalho {
+  border: 1px solid #E4DDD4;
+  background: #FFFFFF;
+  border-radius: 999px;
+  padding: 8px 12px;
+  cursor: pointer;
+  color: #1A1A1A;
+}
+
+.atalho.ativo {
+  background: #E7F6EE;
+  border-color: #1F8A4C;
+  color: #146C3A;
+  font-weight: 650;
+}
+
+.atalho:disabled { opacity: 0.55; cursor: default; }
 
 .calc-escolhido {
   display: flex;
@@ -290,11 +326,13 @@ button, input, select { font: inherit; }
   letter-spacing: -0.02em;
 }
 
-.prod-meta {
+.prod-meta, .unitario-nota {
   margin: 8px 0 0;
   color: #6B6560;
   font-size: 14px;
 }
+
+.unitario-nota { margin-top: 20px; }
 
 .tabela-wrap {
   margin-top: 14px;
