@@ -232,8 +232,3 @@ export function embalagensDo(linhas, cod) {
     .filter((linha) => String(linha.cod) === String(cod))
     .sort((a, b) => (ORDEM[a.embalagem] ?? 9) - (ORDEM[b.embalagem] ?? 9) || a.qtd - b.qtd)
 }
-
-export function unitariosIguais(linhas) {
-  const valores = new Set(linhas.map((linha) => Math.round(Number(linha.preco_uni) * 100)))
-  return valores.size <= 1
-}

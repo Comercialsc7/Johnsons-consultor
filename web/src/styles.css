@@ -164,6 +164,16 @@ button, input, select { font: inherit; }
 .calc-total { padding: 20px 18px 22px; }
 .calc-total .prod-kicker { margin: 0; }
 
+.calc-totais {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.calc-verba { text-align: right; }
+.calc-verba .calc-valor { font-size: 28px; }
+
 .calc-valor {
   margin: 8px 0 0;
   font-size: 36px;
@@ -332,13 +342,11 @@ button, input, select { font: inherit; }
   letter-spacing: -0.02em;
 }
 
-.prod-meta, .unitario-nota {
+.prod-meta {
   margin: 8px 0 0;
   color: #6B6560;
   font-size: 14px;
 }
-
-.unitario-nota { margin-top: 20px; }
 
 .tabela-wrap {
   margin-top: 14px;

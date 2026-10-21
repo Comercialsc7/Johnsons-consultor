@@ -7,7 +7,6 @@ import {
   moeda,
   resumir,
   rotuloEmbalagem,
-  unitariosIguais,
 } from "./catalogo.js"
 
 const PRAZOS = [
@@ -119,7 +118,7 @@ function BoasVindas({ onAcessar, carregando, erro }) {
         <button className="botao-acesso" type="button" onClick={onAcessar} disabled={carregando}>
           {carregando ? "Abrindo catálogo..." : "Acessar"}
         </button>
-        <p className="versao">versão: 1.5</p>
+        <p className="versao">versão: 1.6</p>
         {erro ? <p className="erro">{erro}</p> : null}
       </section>
     </main>
@@ -202,7 +201,6 @@ function Detalhe({ linhas, onVoltar, onCalculadora }) {
     )
   }
   const produto = linhas[0]
-  const igual = unitariosIguais(linhas)
   return (
     <main className="pagina">
       <BarraVoltar onVoltar={onVoltar} onCalculadora={onCalculadora} />
@@ -211,7 +209,6 @@ function Detalhe({ linhas, onVoltar, onCalculadora }) {
       <p className="prod-meta">
         Código {produto.cod} · EAN {produto.ean || "—"}
       </p>
-      {igual ? <p className="unitario-nota">Preço por unidade em 28 dias: {moeda(produto.preco_uni)}</p> : null}
       <div className="tabela-wrap">
         <table className="precos">
           <thead>
@@ -223,7 +220,7 @@ function Detalhe({ linhas, onVoltar, onCalculadora }) {
                   {rotulo}
                 </th>
               ))}
-              {igual ? null : <th className="num">Unitário</th>}
+              <th className="num">Unit</th>
             </tr>
           </thead>
           <tbody>
@@ -239,7 +236,7 @@ function Detalhe({ linhas, onVoltar, onCalculadora }) {
                     {moeda(linha[campo])}
                   </td>
                 ))}
-                {igual ? null : <td className="num">{moeda(linha.preco_uni)}</td>}
+                <td className="num">{moeda(linha.d28 === null ? null : centavos(linha.d28 / linha.qtd))}</td>
               </tr>
             ))}
           </tbody>
@@ -335,6 +332,7 @@ function Calculadora({ linhas, codInicial, onVoltar }) {
   const unidades = pack && qtd !== null ? pack.qtd * qtd : null
   const diferenca = unitario !== null && sugeridoNum !== null ? centavos(unitario - sugeridoNum) : null
   const soma = sugeridoNum !== null && unidades !== null ? centavos(sugeridoNum * unidades) : null
+  const verba = total !== null && soma !== null ? centavos(total - soma) : null
   const condicao = PRAZOS.find(([campo]) => campo === prazo)?.[1] ?? ""
 
   useEffect(() => {
@@ -491,8 +489,16 @@ function Calculadora({ linhas, codInicial, onVoltar }) {
           </div>
         </section>
         <aside className="calc-total">
-          <p className="prod-kicker">Total</p>
-          <p className="calc-valor">{total === null ? "—" : moeda(total)}</p>
+          <div className="calc-totais">
+            <div>
+              <p className="prod-kicker">Total</p>
+              <p className="calc-valor">{total === null ? "—" : moeda(total)}</p>
+            </div>
+            <div className="calc-verba">
+              <p className="prod-kicker">Verba</p>
+              <p className="calc-valor">{verba === null ? "—" : moeda(verba)}</p>
+            </div>
+          </div>
           {pack && qtd !== null && preco !== null ? (
             <p className="calc-resumo">
               {`${qtd} ${rotuloEmbalagem(pack.embalagem).toLowerCase()}${qtd > 1 ? "s" : ""} · ${
