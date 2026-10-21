@@ -119,6 +119,7 @@ function BoasVindas({ onAcessar, carregando, erro }) {
         <button className="botao-acesso" type="button" onClick={onAcessar} disabled={carregando}>
           {carregando ? "Abrindo catálogo..." : "Acessar"}
         </button>
+        <p className="versao">versão: 1.5</p>
         {erro ? <p className="erro">{erro}</p> : null}
       </section>
     </main>
